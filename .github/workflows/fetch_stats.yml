@@ -30,10 +30,14 @@ jobs:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: uv run python src/fetch_stats.py
 
+      - name: Generate graphs
+        run: uv run python src/generate_graph.py
+
       - name: Commit and push changes
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'Update YouTube stats - ${{ github.run_id }}'
-          file_pattern: 'data/*.csv'
+          file_pattern: 'data/*.csv graphs/*'
           commit_user_name: 'GitHub Actions Bot'
           commit_user_email: 'actions@github.com'
+          disable_globbing: true
