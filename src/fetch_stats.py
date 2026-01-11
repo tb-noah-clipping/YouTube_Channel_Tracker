@@ -9,8 +9,9 @@ import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
-from googleapiclient.discovery import build
+from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
 
@@ -30,7 +31,7 @@ def get_api_key() -> str:
     return api_key
 
 
-def load_channels_config(config_path: Path) -> list[dict[str, str]]:
+def load_channels_config(config_path: Path) -> list[dict[str, Any]]:
     """チャンネル設定ファイルを読み込む.
 
     Args:
@@ -40,11 +41,12 @@ def load_channels_config(config_path: Path) -> list[dict[str, str]]:
         チャンネル設定のリスト
     """
     with open(config_path, encoding='utf-8') as f:
-        config = json.load(f)
-    return config.get('channels', [])
+        config: dict[str, Any] = json.load(f)
+    channels: list[dict[str, Any]] = config.get('channels', [])
+    return channels
 
 
-def get_channel_id_from_handle(youtube: object, handle: str) -> str | None:
+def get_channel_id_from_handle(youtube: Resource, handle: str) -> str | None:
     """ハンドル名(@username)からチャンネルIDを取得する.
 
     Args:
@@ -61,10 +63,11 @@ def get_channel_id_from_handle(youtube: object, handle: str) -> str | None:
             part='id',
             forHandle=handle_clean,
         )
-        response = request.execute()
+        response: dict[str, Any] = request.execute()
 
         if response.get('items'):
-            return response['items'][0]['id']
+            channel_id: str = response['items'][0]['id']
+            return channel_id
 
         return None
 
@@ -73,7 +76,7 @@ def get_channel_id_from_handle(youtube: object, handle: str) -> str | None:
         return None
 
 
-def get_channel_stats(youtube: object, channel_id: str) -> dict[str, int | str | bool] | None:
+def get_channel_stats(youtube: Resource, channel_id: str) -> dict[str, int | str | bool] | None:
     """チャンネルIDから統計情報を取得する.
 
     Args:
@@ -88,15 +91,15 @@ def get_channel_stats(youtube: object, channel_id: str) -> dict[str, int | str |
             part='statistics,snippet',
             id=channel_id,
         )
-        response = request.execute()
+        response: dict[str, Any] = request.execute()
 
         if not response.get('items'):
             print(f'チャンネルが見つからない: {channel_id}')
             return None
 
-        item = response['items'][0]
-        stats = item['statistics']
-        snippet = item['snippet']
+        item: dict[str, Any] = response['items'][0]
+        stats: dict[str, Any] = item['statistics']
+        snippet: dict[str, Any] = item['snippet']
 
         return {
             'channel_id': channel_id,
@@ -157,7 +160,7 @@ def main() -> None:
     data_dir.mkdir(exist_ok=True)
 
     api_key = get_api_key()
-    youtube = build('youtube', 'v3', developerKey=api_key)
+    youtube: Resource = build('youtube', 'v3', developerKey=api_key)
 
     channels = load_channels_config(config_path)
 
@@ -169,8 +172,8 @@ def main() -> None:
     print('-' * 50)
 
     for channel_config in channels:
-        handle = channel_config.get('handle', '')
-        name = channel_config.get('name', handle)
+        handle: str = channel_config.get('handle', '')
+        name: str = channel_config.get('name', handle)
 
         print(f'\n処理中: {name} ({handle})')
 
