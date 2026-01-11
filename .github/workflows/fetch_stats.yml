@@ -37,6 +37,7 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'Update YouTube stats - ${{ github.run_id }}'
-          file_pattern: 'data/*.csv graphs/*.png'
+          file_pattern: 'data/*.csv graphs/*'
           commit_user_name: 'GitHub Actions Bot'
           commit_user_email: 'actions@github.com'
+          disable_globbing: true
