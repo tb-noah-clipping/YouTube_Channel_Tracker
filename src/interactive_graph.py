@@ -9,12 +9,34 @@ CSVデータを読み込み、期間フィルタや前日比・前週比を確�
 """
 
 import csv
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
+
+
+@dataclass
+class ChannelData:
+    """チャンネルデータを格納するクラス."""
+
+    timestamp: list[datetime] = field(default_factory=list)
+    subscriber_count: list[int] = field(default_factory=list)
+    view_count: list[int] = field(default_factory=list)
+    video_count: list[int] = field(default_factory=list)
+
+
+@dataclass
+class ChangeMetrics:
+    """変化量を格納するクラス."""
+
+    daily_change: int | None = None
+    daily_rate: float | None = None
+    weekly_change: int | None = None
+    weekly_rate: float | None = None
+
 
 # ページ設定
 st.set_page_config(
@@ -25,37 +47,29 @@ st.set_page_config(
 
 
 @st.cache_data
-def load_csv_data(csv_path: Path) -> dict[str, list[datetime | int]]:
+def load_csv_data(csv_path: Path) -> ChannelData:
     """CSVファイルからデータを読み込む.
 
     Args:
         csv_path: CSVファイルのパス
 
     Returns:
-        各カラムのデータを格納した辞書
+        チャンネルデータ
     """
-    data: dict[str, list[datetime | int]] = {
-        'timestamp': [],
-        'subscriber_count': [],
-        'view_count': [],
-        'video_count': [],
-    }
+    data = ChannelData()
 
     with open(csv_path, encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            data['timestamp'].append(datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S'))
-            data['subscriber_count'].append(int(row['subscriber_count']))
-            data['view_count'].append(int(row['view_count']))
-            data['video_count'].append(int(row['video_count']))
+            data.timestamp.append(datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S'))
+            data.subscriber_count.append(int(row['subscriber_count']))
+            data.view_count.append(int(row['view_count']))
+            data.video_count.append(int(row['video_count']))
 
     return data
 
 
-def filter_data_by_period(
-    data: dict[str, list[datetime | int]],
-    period: str,
-) -> dict[str, list[datetime | int]]:
+def filter_data_by_period(data: ChannelData, period: str) -> ChannelData:
     """指定期間でデータをフィルタする.
 
     Args:
@@ -65,7 +79,7 @@ def filter_data_by_period(
     Returns:
         フィルタ後のデータ
     """
-    if period == '全期間' or not data['timestamp']:
+    if period == '全期間' or not data.timestamp:
         return data
 
     now = datetime.now()
@@ -81,58 +95,72 @@ def filter_data_by_period(
 
     cutoff = now - timedelta(days=days)
 
-    filtered: dict[str, list[datetime | int]] = {
-        'timestamp': [],
-        'subscriber_count': [],
-        'view_count': [],
-        'video_count': [],
-    }
+    filtered = ChannelData()
 
-    for i, ts in enumerate(data['timestamp']):
+    for i, ts in enumerate(data.timestamp):
         if ts >= cutoff:
-            filtered['timestamp'].append(ts)
-            filtered['subscriber_count'].append(data['subscriber_count'][i])
-            filtered['view_count'].append(data['view_count'][i])
-            filtered['video_count'].append(data['video_count'][i])
+            filtered.timestamp.append(ts)
+            filtered.subscriber_count.append(data.subscriber_count[i])
+            filtered.view_count.append(data.view_count[i])
+            filtered.video_count.append(data.video_count[i])
 
     return filtered
 
 
-def calculate_changes(data: dict[str, list[datetime | int]]) -> dict[str, dict[str, int | float | None]]:
+def calculate_metric_change(values: list[int], offset: int) -> ChangeMetrics:
+    """指標の変化量を計算する.
+
+    Args:
+        values: 値のリスト
+        offset: 比較対象のオフセット (1: 前日, 7: 前週)
+
+    Returns:
+        変化量メトリクス
+    """
+    metrics = ChangeMetrics()
+
+    if len(values) <= offset:
+        return metrics
+
+    current = values[-1]
+    previous = values[-(offset + 1)]
+
+    change = current - previous
+    rate = (change / previous * 100) if previous != 0 else 0.0
+
+    if offset == 1:
+        metrics.daily_change = change
+        metrics.daily_rate = round(rate, 2)
+    else:
+        metrics.weekly_change = change
+        metrics.weekly_rate = round(rate, 2)
+
+    return metrics
+
+
+def calculate_changes(data: ChannelData) -> dict[str, ChangeMetrics]:
     """前日比・前週比を計算する.
 
     Args:
         data: CSVから読み込んだデータ
 
     Returns:
-        各指標の変化量と変化率
+        各指標の変化量
     """
-    result: dict[str, dict[str, int | float | None]] = {
-        'subscriber_count': {'daily_change': None, 'daily_rate': None, 'weekly_change': None, 'weekly_rate': None},
-        'view_count': {'daily_change': None, 'daily_rate': None, 'weekly_change': None, 'weekly_rate': None},
-        'video_count': {'daily_change': None, 'daily_rate': None, 'weekly_change': None, 'weekly_rate': None},
-    }
-
-    if len(data['timestamp']) < 2:
-        return result
+    result: dict[str, ChangeMetrics] = {}
 
     for key in ['subscriber_count', 'view_count', 'video_count']:
-        current = data[key][-1]
-        previous = data[key][-2]
+        values: list[int] = getattr(data, key)
 
-        # 前日比
-        daily_change = current - previous
-        daily_rate = (daily_change / previous * 100) if previous != 0 else 0.0
-        result[key]['daily_change'] = daily_change
-        result[key]['daily_rate'] = round(daily_rate, 2)
+        daily = calculate_metric_change(values, 1)
+        weekly = calculate_metric_change(values, 7)
 
-        # 前週比 (7件以上のデータがある場合)
-        if len(data[key]) >= 8:
-            week_ago = data[key][-8]
-            weekly_change = current - week_ago
-            weekly_rate = (weekly_change / week_ago * 100) if week_ago != 0 else 0.0
-            result[key]['weekly_change'] = weekly_change
-            result[key]['weekly_rate'] = round(weekly_rate, 2)
+        result[key] = ChangeMetrics(
+            daily_change=daily.daily_change,
+            daily_rate=daily.daily_rate,
+            weekly_change=weekly.weekly_change,
+            weekly_rate=weekly.weekly_rate,
+        )
 
     return result
 
@@ -154,7 +182,7 @@ def format_change(change: int | None, rate: float | None) -> str:
     return f'{sign}{change:,} ({sign}{rate}%)'
 
 
-def create_graph(data: dict[str, list[datetime | int]], channel_name: str) -> go.Figure:
+def create_graph(data: ChannelData, channel_name: str) -> go.Figure:
     """グラフを作成する.
 
     Args:
@@ -172,12 +200,12 @@ def create_graph(data: dict[str, list[datetime | int]], channel_name: str) -> go
         subplot_titles=('登録者数', '視聴回数', '動画数'),
     )
 
-    timestamps = data['timestamp']
+    timestamps = data.timestamp
 
     fig.add_trace(
         go.Scatter(
             x=timestamps,
-            y=data['subscriber_count'],
+            y=data.subscriber_count,
             mode='lines+markers',
             name='登録者数',
             line={'color': '#e74c3c'},
@@ -190,7 +218,7 @@ def create_graph(data: dict[str, list[datetime | int]], channel_name: str) -> go
     fig.add_trace(
         go.Scatter(
             x=timestamps,
-            y=data['view_count'],
+            y=data.view_count,
             mode='lines+markers',
             name='視聴回数',
             line={'color': '#3498db'},
@@ -203,7 +231,7 @@ def create_graph(data: dict[str, list[datetime | int]], channel_name: str) -> go
     fig.add_trace(
         go.Scatter(
             x=timestamps,
-            y=data['video_count'],
+            y=data.video_count,
             mode='lines+markers',
             name='動画数',
             line={'color': '#2ecc71'},
@@ -254,47 +282,47 @@ def main() -> None:
         # データ読み込み
         raw_data = load_csv_data(csv_path)
 
-        if not raw_data['timestamp']:
+        if not raw_data.timestamp:
             st.warning(f'{channel_id}: データが空')
             continue
 
         # 期間フィルタ適用
         data = filter_data_by_period(raw_data, period)
 
-        if not data['timestamp']:
+        if not data.timestamp:
             st.warning(f'{channel_id}: 選択期間内にデータがない')
             continue
 
         # 最新値と変化量
         st.header(f'チャンネル: {channel_id}')
 
-        changes = calculate_changes(raw_data)  # 変化量は全期間データで計算
+        changes = calculate_changes(raw_data)
 
         col1, col2, col3 = st.columns(3)
 
         with col1:
             st.metric(
                 label='登録者数',
-                value=f'{data["subscriber_count"][-1]:,}',
+                value=f'{data.subscriber_count[-1]:,}',
             )
-            st.caption(f'前日比: {format_change(changes["subscriber_count"]["daily_change"], changes["subscriber_count"]["daily_rate"])}')
-            st.caption(f'前週比: {format_change(changes["subscriber_count"]["weekly_change"], changes["subscriber_count"]["weekly_rate"])}')
+            st.caption(f'前日比: {format_change(changes["subscriber_count"].daily_change, changes["subscriber_count"].daily_rate)}')
+            st.caption(f'前週比: {format_change(changes["subscriber_count"].weekly_change, changes["subscriber_count"].weekly_rate)}')
 
         with col2:
             st.metric(
                 label='視聴回数',
-                value=f'{data["view_count"][-1]:,}',
+                value=f'{data.view_count[-1]:,}',
             )
-            st.caption(f'前日比: {format_change(changes["view_count"]["daily_change"], changes["view_count"]["daily_rate"])}')
-            st.caption(f'前週比: {format_change(changes["view_count"]["weekly_change"], changes["view_count"]["weekly_rate"])}')
+            st.caption(f'前日比: {format_change(changes["view_count"].daily_change, changes["view_count"].daily_rate)}')
+            st.caption(f'前週比: {format_change(changes["view_count"].weekly_change, changes["view_count"].weekly_rate)}')
 
         with col3:
             st.metric(
                 label='動画数',
-                value=f'{data["video_count"][-1]:,}',
+                value=f'{data.video_count[-1]:,}',
             )
-            st.caption(f'前日比: {format_change(changes["video_count"]["daily_change"], changes["video_count"]["daily_rate"])}')
-            st.caption(f'前週比: {format_change(changes["video_count"]["weekly_change"], changes["video_count"]["weekly_rate"])}')
+            st.caption(f'前日比: {format_change(changes["video_count"].daily_change, changes["video_count"].daily_rate)}')
+            st.caption(f'前週比: {format_change(changes["video_count"].weekly_change, changes["video_count"].weekly_rate)}')
 
         # グラフ表示
         fig = create_graph(data, channel_id)
