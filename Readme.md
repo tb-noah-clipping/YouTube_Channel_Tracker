@@ -91,6 +91,10 @@ uv run python src/generate_graph.py
 
 ### インタラクティブダッシュボード (ローカル実行)
 ```bash
+# 最新データを取得
+git pull origin main
+
+# ダッシュボードを起動
 uv run streamlit run src/interactive_graph.py
 ```
 
