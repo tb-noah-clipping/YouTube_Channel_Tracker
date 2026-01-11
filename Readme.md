@@ -1,107 +1,71 @@
 # YouTube Channel Tracker
 
-YouTubeチャンネルの統計情報（登録者数、動画数、総再生回数など）を毎日自動的に記録し、可視化するツールです。
+YouTubeチャンネルの統計情報を毎日自動で記録するツール.
 
 ## 機能
 
-- GitHub Actionsによる毎日自動データ収集
-- YouTube Data API v3を使用
+- 指定したYouTubeチャンネルの統計情報を取得
+  - 登録者数
+  - 総視聴回数
+  - 動画数
+- GitHub Actionsによる毎日の自動実行 (日本時間 21:00)
 - CSVファイルへのデータ蓄積
-- グラフによる可視化（登録者数の推移など）
-- GitHub Pagesでの公開
 
 ## セットアップ
 
-### 1. YouTube Data APIキーの取得
+### 1. YouTube Data API キーの取得
 
-1. [Google Cloud Console](https://console.cloud.google.com/)にアクセス
-2. 新しいプロジェクトを作成
+1. [Google Cloud Console](https://console.cloud.google.com/) にアクセス
+2. プロジェクトを作成または選択
 3. 「APIとサービス」→「ライブラリ」から「YouTube Data API v3」を有効化
-4. 「認証情報」→「認証情報を作成」→「APIキー」を選択
-5. 作成されたAPIキーをコピー
+4. 「APIとサービス」→「認証情報」からAPIキーを作成
 
-### 2. GitHubリポジトリの設定
+### 2. GitHub Secretsの設定
 
-1. このリポジトリをフォークまたはクローン
-2. リポジトリの「Settings」→「Secrets and variables」→「Actions」を開く
-3. 「New repository secret」をクリック
-4. 以下のシークレットを追加：
-   - Name: `YOUTUBE_API_KEY`
-   - Secret: 取得したYouTube APIキー
+リポジトリの Settings → Secrets and variables → Actions から以下を追加:
 
-### 3. チャンネルIDの設定
+- `YOUTUBE_API_KEY`: 取得したAPIキー
 
-`config.json`ファイルを編集して、追跡したいチャンネルのIDを設定します。
+### 3. チャンネル設定
 
+`config/channels.json` に追跡したいチャンネルを設定する.
 ```json
 {
   "channels": [
     {
-      "id": "UCxxxxxxxxxxxxxxxxxxxxxx",
-      "name": "チャンネル名"
+      "handle": "@example",
+      "name": "チャンネル名",
+      "note": "メモ"
     }
   ]
 }
 ```
 
-チャンネルIDの確認方法：
-- チャンネルページのURL: `https://www.youtube.com/channel/[チャンネルID]`
-- または、カスタムURLの場合は、ページのソースから`channelId`を検索
-
-### 4. GitHub Actionsの有効化
-
-1. リポジトリの「Actions」タブを開く
-2. ワークフローを有効化
-
-## 使い方
-
-- セットアップ後、毎日日本時間9:00（UTC 0:00）に自動でデータが収集されます
-- データは`data/channel_stats.csv`に追記されます
-- グラフは`docs/index.html`で確認できます
-- GitHub Pagesを有効にすると、公開URLでグラフを閲覧可能
-
-## 手動実行
-
-ローカルでデータ収集を実行する場合：
-
-```bash
-# 依存パッケージのインストール
-uv pip install -e .
-
-# 環境変数の設定
-export YOUTUBE_API_KEY="your-api-key-here"
-
-# データ収集
-python scripts/collect_data.py
-
-# グラフ生成
-python scripts/visualize.py
-```
-
 ## ファイル構成
-
 ```
 YouTube_Channel_Tracker/
 ├── .github/
 │   └── workflows/
-│       └── collect_stats.yml  # 自動実行設定
-├── scripts/
-│   ├── collect_data.py        # データ収集スクリプト
-│   └── visualize.py           # グラフ生成スクリプト
+│       └── fetch_stats.yml
+├── src/
+│   └── fetch_stats.py
+├── config/
+│   └── channels.json
 ├── data/
-│   └── channel_stats.csv      # 統計データ（自動生成）
-├── docs/
-│   └── index.html            # グラフ表示ページ（自動生成）
-├── config.json               # チャンネル設定
-├── pyproject.toml           # プロジェクト設定
+│   └── (自動生成されるCSVファイル)
+├── pyproject.toml
+├── .gitignore
 └── README.md
 ```
 
-## 注意事項
+## ローカルでの実行
+```bash
+# 環境変数の設定 (Windows)
+set YOUTUBE_API_KEY=your_api_key_here
 
-- YouTube Data API v3には1日あたり10,000ユニットのクォータ制限があります
-- チャンネル統計の取得は1チャンネルあたり約1ユニット消費します
-- APIキーは絶対にGitHubにコミットしないでください（GitHub Secretsを使用）
+# 実行
+uv run python src/fetch_stats.py
+```
 
 ## ライセンス
 
