@@ -1,6 +1,6 @@
 # YouTube Channel Tracker
 
-> Note: 
+> **Note**
 > このツールは Claude (Anthropic) によって生成された.
 
 YouTubeチャンネルの統計情報を毎日自動で記録するツール.
@@ -19,6 +19,8 @@ YouTubeチャンネルの統計情報を毎日自動で記録するツール.
   - 動画数
 - GitHub Actionsによる毎日の自動実行 (日本時間 21:00)
 - CSVファイルへのデータ蓄積
+- 静的グラフ画像の自動生成
+- インタラクティブダッシュボード (ローカル実行)
 
 ## セットアップ
 
@@ -57,17 +59,23 @@ YouTube_Channel_Tracker/
 │   └── workflows/
 │       └── fetch_stats.yml
 ├── src/
-│   └── fetch_stats.py
+│   ├── fetch_stats.py
+│   ├── generate_graph.py
+│   └── interactive_graph.py
 ├── config/
 │   └── channels.json
 ├── data/
 │   └── (自動生成されるCSVファイル)
+├── graphs/
+│   └── (自動生成されるグラフ画像)
 ├── pyproject.toml
 ├── .gitignore
 └── README.md
 ```
 
-## ローカルでの実行
+## 使い方
+
+### データ取得 (ローカル実行)
 ```bash
 # 環境変数の設定 (Windows)
 set YOUTUBE_API_KEY=your_api_key_here
@@ -75,6 +83,23 @@ set YOUTUBE_API_KEY=your_api_key_here
 # 実行
 uv run python src/fetch_stats.py
 ```
+
+### 静的グラフ生成 (ローカル実行)
+```bash
+uv run python src/generate_graph.py
+```
+
+### インタラクティブダッシュボード (ローカル実行)
+```bash
+uv run streamlit run src/interactive_graph.py
+```
+
+ブラウザが自動で開き、以下の機能が利用できる:
+
+- 期間フィルタ (全期間/過去7日/過去30日/過去90日)
+- 前日比・前週比の表示
+- マウスオーバーで詳細数値の確認
+- ズーム・パン操作
 
 ## ライセンス
 
