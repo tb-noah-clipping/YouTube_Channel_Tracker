@@ -1,0 +1,39 @@
+name: Fetch YouTube Stats
+
+on:
+  # 毎日 UTC 12:00 (日本時間 21:00) に実行
+  schedule:
+    - cron: '0 12 * * *'
+
+  # 手動実行も可能
+  workflow_dispatch:
+
+jobs:
+  fetch-stats:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Setup Python
+        run: uv python install 3.12
+
+      - name: Fetch YouTube statistics
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: uv run python src/fetch_stats.py
+
+      - name: Commit and push changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'Update YouTube stats - ${{ github.run_id }}'
+          file_pattern: 'data/*.csv'
+          commit_user_name: 'GitHub Actions Bot'
+          commit_user_email: 'actions@github.com'
