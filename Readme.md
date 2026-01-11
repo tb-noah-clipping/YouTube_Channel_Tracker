@@ -1,5 +1,8 @@
 # YouTube Channel Tracker
 
+> Note: 
+> このツールは Claude (Anthropic) によって生成された.
+
 YouTubeチャンネルの統計情報を毎日自動で記録するツール.
 
 ## 機能
