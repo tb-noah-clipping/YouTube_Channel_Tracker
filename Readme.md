@@ -5,6 +5,12 @@
 
 YouTubeチャンネルの統計情報を毎日自動で記録するツール.
 
+## 統計グラフ
+
+![YouTube Stats](graphs/UCIcAj6WkJ8vZ7DeJVgmeqKw.png)
+
+※ データが2件以上蓄積されると自動でグラフが表示される.
+
 ## 機能
 
 - 指定したYouTubeチャンネルの統計情報を取得
