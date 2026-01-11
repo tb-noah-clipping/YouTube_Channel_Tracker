@@ -1,10 +1,11 @@
 [project]
 name = "YouTube_Channel_Tracker"
 version = "0.1.0"
-description = "Add your description here"
+description = "YouTubeチャンネルの統計情報を毎日自動で記録するツール"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "google-api-python-client>=2.0.0",
 ]
 
 [tool.ruff]
@@ -84,4 +85,3 @@ ignore_missing_imports = true
 exclude = [
     "docs/source/conf\\.py$", # . はエスケープ
 ]
-
